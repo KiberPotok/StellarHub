@@ -499,5 +499,6 @@
   "{n} uninstalls are kept until the PC restarts: some of their files are still waiting to be moved.": "Удалений, хранящихся до перезагрузки компьютера: {n}. Некоторые их файлы ещё ожидают перемещения.",
   "Confidence": "Уверенность",
   "How sure StellarHub is that this belongs to the program, from 0 to 100.": "Насколько StellarHub уверен, что это относится к программе, от 0 до 100.",
-  "By publisher": "По издателям"
+  "remover|Compact": "Компактно",
+  "Group the programs of each publisher": "Сгруппировать программы по издателям"
 }
