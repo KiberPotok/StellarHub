@@ -779,7 +779,7 @@
   "Windows and app logs": "Журналы Windows и приложений",
   "Windows and many apps open web content with it.": "Windows и многие приложения открывают с её помощью веб-содержимое.",
   "Windows decides (not set)": "Решает Windows (не задано)",
-  "Windows defaults": "Значения Windows по умолчанию",
+  "Windows defaults": "По умолчанию",
   "Windows didn't accept the change: {error}": "Windows не приняла изменение: {error}",
   "Windows didn't accept the mode (code {code})": "Windows не приняла режим (код {code})",
   "Windows didn't create it": "Windows не создала его",
