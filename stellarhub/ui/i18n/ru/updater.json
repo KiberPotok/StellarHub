@@ -319,5 +319,7 @@
   "Check for updates to see which Store apps have a new version.": "Проверьте обновления, чтобы узнать, у каких приложений Store есть новая версия.",
   "Not checked yet. Check now searches Windows Update; it takes a minute or two.": "Ещё не проверялось. «Проверить» ищет в Центре обновления Windows; это занимает минуту-две.",
   "Check now looks for new versions of Python and its packages, Node.js and npm packages, Git and WSL. Nothing is installed until you choose.": "«Проверить» ищет новые версии Python и его пакетов, Node.js и пакетов npm, Git и WSL. Ничего не устанавливается без вашего выбора.",
-  "Check for updates to see which shared components (.NET, Visual C++, WebView2…) have a new version.": "Проверьте обновления, чтобы узнать, у каких общих компонентов (.NET, Visual C++, WebView2…) есть новая версия."
+  "Check for updates to see which shared components (.NET, Visual C++, WebView2…) have a new version.": "Проверьте обновления, чтобы узнать, у каких общих компонентов (.NET, Visual C++, WebView2…) есть новая версия.",
+  "updater|Compact": "Компактно",
+  "Group the programs of each publisher": "Сгруппировать программы по издателям"
 }
