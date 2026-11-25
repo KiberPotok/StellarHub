@@ -629,11 +629,18 @@ function openFlow(progs, opts = {}) {
 function renderPrograms(el, ctx) {
   el.classList.add('fill');
   el.innerHTML = `<div class="rv-left pan rv-listwrap" data-asm><div class="rv-tools"><label class="field">${ic('search')}<input id="rpQ" placeholder="${T('Search for a program or publisher')}" spellcheck="false"></label>
-      ${segHTML([['all', TC('All')], ['recent', T('Recent')], ['big', TC('Large')], ['store', T('Store')], ['sys', T('System')]], 'all')}<span class="cnt" id="rpCnt"></span></div>
+      ${segHTML([['all', TC('All')], ['recent', T('Recent')], ['big', TC('Large')], ['store', T('Store')], ['sys', T('System')]], 'all')}<button class="btn sm ghost rv-gbtn" id="rpGroup" aria-pressed="false" title="${T('Group the programs of each publisher')}">${ic('layers')}${TC('Compact')}</button><span class="cnt" id="rpCnt"></span></div>
     <div class="tbl-head rv-cols"><button data-s="name" class="on">${T('Program')}${ic('sortaz')}</button><button data-s="ver">${T('Version')}${ic('sortaz')}</button><button data-s="mb">${T('Size')}${ic('sortaz')}</button><button data-s="date">${T('Installed')}${ic('sortaz')}</button></div>
       <div class="rv-scroll" id="rpList"></div></div>
     <div class="pan rv-detail" data-asm><div class="rv-dscroll" id="rpDetail"></div></div>`;
   const list = $('#rpList', el); let q = '', filt = 'all', sort = 'name', desc = false, selected = null;
+  /* by publisher: the programs of a publisher with two or more of them fold under one row that opens like a list
+     ("Microsoft Corporation", "Microsoft Corp." and "Корпорация Майкрософт" are one publisher) */
+  let grouped = (SH.state.settings || {}).removerGroup !== false; const open = new Set();
+  const LEGAL = /\b(corporation|corp|incorporated|inc|llc|ltd|limited|gmbh|co|company|s\.?a|s\.?r\.?l|ag|bv|oy|ab|plc|pty|the|корпорация|ооо|ао|зао)\b\.?/gi;
+  const pubKey = p => { const w = (p.pub || '').toLowerCase().replace(/майкрософт/g, 'microsoft').replace(LEGAL, ' ').replace(/[^\p{L}\p{N}]+/gu, ' ').trim().split(' ')[0]; return w || null; };
+  const pubName = ps => { const n = ps.map(p => (p.pub || '').replace(LEGAL, ' ').replace(/[\s,.]+$/g, '').replace(/\s+/g, ' ').trim()).filter(Boolean).sort((a, b) => a.length - b.length)[0]; return n || ps[0].pub; };
+  const groupHTML = (k, ps, o) => `<button class="rv-pg rv-cols${o ? ' open' : ''}" data-g="${esc(k)}" aria-expanded="${o}"><span class="nm">${pi(ps.find(p => p.icon) || ps[0])}<span style="min-width:0"><b>${esc(pubName(ps))}</b><span>${PL(ps.length, '{n} program', '{n} programs')}</span></span><span class="gch">${ic('chev')}</span></span><span class="c"></span><span class="c sz">${fmtMB(ps.reduce((a, p) => a + p.mb, 0))}</span><span class="c"></span></button>`;
   const rowHTML = p => `<button class="pr rv-cols" data-p="${p.id}"><span class="nm">${pi(p)}<span style="min-width:0"><b>${esc(p.name)}${p.prot ? `<span class="tagp">${T('protected')}</span>` : ''}</b><span>${esc(p.pub)}</span></span></span><span class="c">${esc(p.ver)}</span><span class="c sz">${fmtMB(p.mb)}</span><span class="c">${fmtDate(p.date)}</span></button>`;
   function build() { list.innerHTML = PROGRAMS.map(rowHTML).join(''); apply(false); }
   function visible(p) {
@@ -644,7 +651,24 @@ function renderPrograms(el, ctx) {
   const cmp = { name: (a, b) => a.name.localeCompare(b.name, 'en-US'), ver: (a, b) => a.ver.localeCompare(b.ver, 'en-US', { numeric: true }), mb: (a, b) => b.mb - a.mb, date: (a, b) => (b.date || 0) - (a.date || 0) };
   function apply(animate) {
     const order = PROGRAMS.slice().sort((a, b) => (desc ? -1 : 1) * cmp[sort](a, b));
-    const doIt = () => { order.forEach(p => { const r = $(`.pr[data-p="${p.id}"]`, list); if (r) { r.hidden = !visible(p); list.appendChild(r); } }); };
+    const doIt = () => {
+      $$('.rv-pg', list).forEach(g => g.remove());
+      const vis = order.filter(visible), groups = new Map();
+      if (grouped) vis.forEach(p => { const k = pubKey(p); if (k) (groups.get(k) || groups.set(k, []).get(k)).push(p); });
+      const done = new Set();
+      order.forEach(p => {
+        const r = $(`.pr[data-p="${p.id}"]`, list); if (!r) return;
+        const k = grouped && visible(p) ? pubKey(p) : null, g = k && groups.get(k);
+        if (g && g.length > 1) {
+          if (done.has(k)) return; done.add(k);
+          const show = open.has(k) || !!q;  /* a search shows what it found */
+          list.insertAdjacentHTML('beforeend', groupHTML(k, g, show));
+          g.forEach(x => { const rx = $(`.pr[data-p="${x.id}"]`, list); if (rx) { rx.hidden = !show; rx.classList.add('in-g'); list.appendChild(rx); } });
+          return;
+        }
+        r.classList.remove('in-g'); r.hidden = !visible(p); list.appendChild(r);
+      });
+    };
     animate ? flip(list, doIt) : doIt();
     const vis = order.filter(visible); $('#rpCnt', el).textContent = PL(vis.length, '{n} program, {size} GB', '{n} programs, {size} GB', { size: fmt1(vis.reduce((a, p) => a + p.mb, 0) / 1024) });
     if (!animate) stagger($$('.pr:not([hidden])', list).slice(0, 16), 60, 22);
@@ -658,6 +682,14 @@ function renderPrograms(el, ctx) {
   list.addEventListener('click', e => { const r = e.target.closest('.pr'); if (r) select(PROGRAMS.find(p => p.id === r.dataset.p), r); });
   list.addEventListener('dblclick', e => { const r = e.target.closest('.pr'); if (r) openFlow([PROGRAMS.find(p => p.id === r.dataset.p)]); });
   const det = $('#rpDetail', el);
+  const gbtn = $('#rpGroup', el);
+  const syncGroupBtn = () => { gbtn.classList.toggle('on', grouped); gbtn.setAttribute('aria-pressed', grouped); };
+  syncGroupBtn();
+  gbtn.addEventListener('click', () => { grouped = !grouped; SH.setSetting('removerGroup', grouped); syncGroupBtn(); apply(false); });
+  list.addEventListener('click', e => {
+    const g = e.target.closest('.rv-pg'); if (!g) return;
+    const k = g.dataset.g; if (open.has(k)) open.delete(k); else open.add(k); apply(false);
+  });
   function summary() {
     const top = PROGRAMS.slice().sort((a, b) => b.mb - a.mb).slice(0, 4); const max = top[0] ? top[0].mb : 1;
     const recent = PROGRAMS.filter(p => p.date).sort((a, b) => b.date - a.date).slice(0, 3);
