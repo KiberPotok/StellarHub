@@ -626,6 +626,11 @@ function openFlow(progs, opts = {}) {
 }
 
 /* ================= Programs ================= */
+/* publishers, for the compact lists: "Microsoft Corporation", "Microsoft Corp." and "Корпорация Майкрософт" are one */
+const LEGAL = /\b(corporation|corp|incorporated|inc|llc|ltd|limited|gmbh|co|company|s\.?a|s\.?r\.?l|ag|bv|oy|ab|plc|pty|the|корпорация|ооо|ао|зао)\b\.?/gi;
+const pubKey = p => { const w = (p.pub || '').toLowerCase().replace(/майкрософт/g, 'microsoft').replace(LEGAL, ' ').replace(/[^\p{L}\p{N}]+/gu, ' ').trim().split(' ')[0]; return w || null; };
+const pubName = ps => { const n = ps.map(p => (p.pub || '').replace(LEGAL, ' ').replace(/[\s,.]+$/g, '').replace(/\s+/g, ' ').trim()).filter(Boolean).sort((a, b) => a.length - b.length)[0]; return n || ps[0].pub; };
+const grouping = () => (SH.state.settings || {}).removerGroup !== false;
 function renderPrograms(el, ctx) {
   el.classList.add('fill');
   el.innerHTML = `<div class="rv-left pan rv-listwrap" data-asm><div class="rv-tools"><label class="field">${ic('search')}<input id="rpQ" placeholder="${T('Search for a program or publisher')}" spellcheck="false"></label>
@@ -637,9 +642,6 @@ function renderPrograms(el, ctx) {
   /* by publisher: the programs of a publisher with two or more of them fold under one row that opens like a list
      ("Microsoft Corporation", "Microsoft Corp." and "Корпорация Майкрософт" are one publisher) */
   let grouped = (SH.state.settings || {}).removerGroup !== false; const open = new Set();
-  const LEGAL = /\b(corporation|corp|incorporated|inc|llc|ltd|limited|gmbh|co|company|s\.?a|s\.?r\.?l|ag|bv|oy|ab|plc|pty|the|корпорация|ооо|ао|зао)\b\.?/gi;
-  const pubKey = p => { const w = (p.pub || '').toLowerCase().replace(/майкрософт/g, 'microsoft').replace(LEGAL, ' ').replace(/[^\p{L}\p{N}]+/gu, ' ').trim().split(' ')[0]; return w || null; };
-  const pubName = ps => { const n = ps.map(p => (p.pub || '').replace(LEGAL, ' ').replace(/[\s,.]+$/g, '').replace(/\s+/g, ' ').trim()).filter(Boolean).sort((a, b) => a.length - b.length)[0]; return n || ps[0].pub; };
   const groupHTML = (k, ps, o) => `<button class="rv-pg rv-cols${o ? ' open' : ''}" data-g="${esc(k)}" aria-expanded="${o}"><span class="nm">${pi(ps.find(p => p.icon) || ps[0])}<span style="min-width:0"><b>${esc(pubName(ps))}</b><span>${PL(ps.length, '{n} program', '{n} programs')}</span></span><span class="gch">${ic('chev')}</span></span><span class="c"></span><span class="c sz">${fmtMB(ps.reduce((a, p) => a + p.mb, 0))}</span><span class="c"></span></button>`;
   const rowHTML = p => `<button class="pr rv-cols" data-p="${p.id}"><span class="nm">${pi(p)}<span style="min-width:0"><b>${esc(p.name)}${p.prot ? `<span class="tagp">${T('protected')}</span>` : ''}</b><span>${esc(p.pub)}</span></span></span><span class="c">${esc(p.ver)}</span><span class="c sz">${fmtMB(p.mb)}</span><span class="c">${fmtDate(p.date)}</span></button>`;
   function build() { list.innerHTML = PROGRAMS.map(rowHTML).join(''); apply(false); }
@@ -748,19 +750,30 @@ function renderBatch(el) {
       <div class="list" id="rbQueue">${QUEUE_EMPTY}</div>
       <div class="rd-acts"><button class="btn pri lg" id="rbGo" disabled>${ic('remover')}${T('Uninstall')}</button></div></div>`;
   const list = $('#rbList', el), queue = $('#rbQueue', el); const sel = new Set(); let mode = 'silent', running = false, q = '';
+  const bOpen = new Set(); let bGroups = new Map();  /* compact (the Programs tab's switch): publishers fold, each with its own checkbox */
+  const bRow = (p, k) => `<button class="pr rv-cols${k ? ' in-g' : ''}" data-p="${p.id}"${k ? ` data-g="${esc(k)}"` : ''}>${CHK(sel.has(p.id))}<span class="nm">${pi(p)}<span style="min-width:0"><b>${esc(p.name)}</b><span>${esc(p.pub)}</span></span></span><span class="c sz">${fmtMB(p.mb)}</span><span class="c">${fmtDate(p.date)}</span></button>`;
   const avail = () => PROGRAMS.filter(p => !p.prot);
   function build() {
-    list.innerHTML = avail().map(p => `<button class="pr rv-cols" data-p="${p.id}">${CHK(sel.has(p.id))}<span class="nm">${pi(p)}<span style="min-width:0"><b>${esc(p.name)}</b><span>${esc(p.pub)}</span></span></span><span class="c sz">${fmtMB(p.mb)}</span><span class="c">${fmtDate(p.date)}</span></button>`).join('');
+    bGroups = new Map(); if (grouping()) avail().forEach(p => { const k = pubKey(p); if (k) (bGroups.get(k) || bGroups.set(k, []).get(k)).push(p); });
+    const done = new Set();
+    list.innerHTML = avail().map(p => {
+      const k = pubKey(p), g = k && bGroups.get(k);
+      if (!g || g.length < 2) return bRow(p);
+      if (done.has(k)) return ''; done.add(k);
+      return `<div class="rv-pg rv-cols" data-g="${esc(k)}" role="button" tabindex="0">${ALLCHK(`data-bg="${esc(k)}"`, T('Select all: {group}', { group: pubName(g) }))}<span class="nm">${pi(g.find(x => x.icon) || g[0])}<span style="min-width:0"><b>${esc(pubName(g))}</b><span>${PL(g.length, '{n} program', '{n} programs')}</span></span><span class="gch">${ic('chev')}</span></span><span class="c sz">${fmtMB(g.reduce((a, x) => a + x.mb, 0))}</span><span class="c"></span></div>` + g.map(x => bRow(x, k)).join('');
+    }).join('');
     filter(); stagger($$('.pr', list).slice(0, 16), 60, 22);
   }
-  function filter() { const qq = q.toLowerCase(); let n = 0; $$('.pr', list).forEach(r => { const p = PROGRAMS.find(x => x.id === r.dataset.p); r.hidden = !!qq && !(p.name + ' ' + p.pub).toLowerCase().includes(qq); if (!r.hidden) n++; });
+  function filter() { const qq = q.toLowerCase(); let n = 0; $$('.pr', list).forEach(r => { const p = PROGRAMS.find(x => x.id === r.dataset.p); const m = !qq || (p.name + ' ' + p.pub).toLowerCase().includes(qq); r.dataset.m = m ? '1' : ''; r.hidden = !m || (!!r.dataset.g && !qq && !bOpen.has(r.dataset.g)); if (m) n++; });
+    $$('.rv-pg', list).forEach(h => { const k = h.dataset.g; h.hidden = !$$(`.pr[data-g="${CSS.escape(k)}"]`, list).some(r => r.dataset.m); h.classList.toggle('open', bOpen.has(k) || !!qq); h.setAttribute('aria-expanded', h.classList.contains('open')); });
     /* the Programs tab lists everything; here the protected components (runtimes, drivers, security) are left out on purpose */
     const nProt = PROGRAMS.length - avail().length, cn = $('#rbCnt', el);
     cn.textContent = PL(n, '{n} program', '{n} programs') + (nProt ? ' · ' + T('{m} protected not listed', { m: nProt }) : '');
     cn.title = nProt ? T('Protected components are not offered for batch uninstall. You can still find them in the Programs tab.') : '';
     syncAll(); }
-  const shown = () => $$('.pr', list).filter(r => !r.hidden).map(r => r.dataset.p);
-  function syncAll() { const ids = shown(); setTri($('#rbAll', el), ids.filter(id => sel.has(id)).length, ids.length); }
+  const shown = () => $$('.pr', list).filter(r => r.dataset.m).map(r => r.dataset.p);  /* what the search shows, folded or not */
+  function syncAll() { const ids = shown(); setTri($('#rbAll', el), ids.filter(id => sel.has(id)).length, ids.length);
+    $$('[data-bg]', list).forEach(b => { const ms = (bGroups.get(b.dataset.bg) || []).map(p => p.id); setTri(b, ms.filter(id => sel.has(id)).length, ms.length); }); }
   $('#rbAll', el).addEventListener('keydown', triKeys);
   $('#rbAll', el).addEventListener('click', e => {
     if (running) return; const ids = shown(); if (!ids.length) return; const all = ids.every(id => sel.has(id));
@@ -780,6 +793,12 @@ function renderBatch(el) {
       ps.forEach(p => { if (!$(`.qi[data-p="${p.id}"]`, queue)) { queue.insertAdjacentHTML('beforeend', `<div class="qi" data-p="${p.id}">${pi(p)}<span class="rt"><b>${esc(p.name)}</b><span>${p.silent ? T('Silent') : TC('Normal')}, ${fmtMB(p.mb)}</span></span><span class="chip">${TC('Queued')}</span><span class="fill"></span></div>`); const n = queue.lastElementChild; anim(n, [{ opacity: 0, transform: 'translate3d(20px,0,0) scale(.96)' }, { opacity: 1, transform: 'none' }], { d: 420, e: EASE.spring }); } });
     });
   }
+  list.addEventListener('click', e => {
+    if (running) return;
+    const bg = e.target.closest('[data-bg]');
+    if (bg) { const ms = (bGroups.get(bg.dataset.bg) || []).map(p => p.id), all = ms.every(id => sel.has(id)); ms.forEach(id => { if (all) sel.delete(id); else sel.add(id); const c = $(`.pr[data-p="${id}"] .check`, list); if (c) c.classList.toggle('on', sel.has(id)); }); drawQueue(); return; }
+    const h = e.target.closest('.rv-pg'); if (h) { const k = h.dataset.g; if (bOpen.has(k)) bOpen.delete(k); else bOpen.add(k); filter(); return; }
+  });
   list.addEventListener('click', e => { if (running) return; const r = e.target.closest('.pr'); if (!r) return; const id = r.dataset.p; sel.has(id) ? sel.delete(id) : sel.add(id); const c = $('.check', r); c.classList.toggle('on', sel.has(id)); anim(c, [{ transform: 'scale(.75)' }, { transform: 'none' }], { d: 320, e: EASE.spring }); drawQueue(); });
   $('#rbGo', el).addEventListener('click', async () => {
     const ps = [...sel].map(id => PROGRAMS.find(p => p.id === id)).filter(Boolean); if (!ps.length || running) return;

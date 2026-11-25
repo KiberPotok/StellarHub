@@ -39,6 +39,9 @@
 #v-remover .rv-pg .c{font-size:var(--fs-sm);color:var(--mute)}
 #v-remover .rv-pg .c.sz{color:var(--ink)}
 #v-remover .rv-pg .nm .pi{display:grid;font-size:var(--fs-sm);color:#fff;white-space:normal}
+#v-remover .rv-batch .rv-pg{cursor:pointer}
+#v-remover .rv-batch .pr.in-g{padding-left:12px}
+#v-remover .rv-batch .pr.in-g .nm{padding-left:28px}
 #v-remover .pr.in-g{padding-left:36px}
 #v-remover .rv-gbtn.on{background:var(--raise2);color:var(--ink)}
 #v-remover .pr .tagp{font-size:var(--fs-cap);color:var(--faint);margin-left:6px}
