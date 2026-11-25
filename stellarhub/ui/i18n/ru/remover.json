@@ -496,5 +496,7 @@
   "{name} uninstalled. {n} leftovers to review.": "Программа {name} удалена. Остатков для проверки: {n}.",
   "{name} uninstalled. Nothing was left behind.": "Программа {name} удалена. Ничего не осталось.",
   "1 uninstall is kept until the PC restarts: some of its files are still waiting to be moved.": "1 удаление хранится до перезагрузки компьютера: некоторые его файлы ещё ожидают перемещения.",
-  "{n} uninstalls are kept until the PC restarts: some of their files are still waiting to be moved.": "Удалений, хранящихся до перезагрузки компьютера: {n}. Некоторые их файлы ещё ожидают перемещения."
+  "{n} uninstalls are kept until the PC restarts: some of their files are still waiting to be moved.": "Удалений, хранящихся до перезагрузки компьютера: {n}. Некоторые их файлы ещё ожидают перемещения.",
+  "Confidence": "Уверенность",
+  "How sure StellarHub is that this belongs to the program, from 0 to 100.": "Насколько StellarHub уверен, что это относится к программе, от 0 до 100."
 }
